@@ -62,7 +62,7 @@ function App() {
     setAgentLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/agent/generate', {
+      const response = await fetch('/agent/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
@@ -91,7 +91,7 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:8000/tts', {
+      const response = await fetch('/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voice, speed }),

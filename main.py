@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import base64
 from kokoro import KPipeline
@@ -35,6 +39,9 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 ENABLE_WEB_SEARCH = os.getenv("ENABLE_WEB_SEARCH", "true").lower() in {"1", "true", "yes"}
 SEARCH_RESULT_COUNT = int(os.getenv("SEARCH_RESULT_COUNT", "5"))
+
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 
 def get_groq_client():
     if not GROQ_API_KEY:
@@ -136,7 +143,11 @@ class AgentRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "Kokoro TTS & AI Agent API is running!"}
+    index_file = FRONTEND_DIST_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+
+    return JSONResponse({"message": "Kokoro TTS & AI Agent API is running!"})
 
 @app.post("/agent/generate")
 async def generate_script(request: AgentRequest):
@@ -196,4 +207,32 @@ async def get_voices():
         "am_adam", "am_michael", "bf_emma", "bf_isabella", "bm_george"
     ]
     return {"available_voices": voices}
+
+
+if FRONTEND_DIST_DIR.exists():
+    assets_dir = FRONTEND_DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/favicon.svg")
+    async def favicon():
+        favicon_file = FRONTEND_DIST_DIR / "favicon.svg"
+        if favicon_file.exists():
+            return FileResponse(favicon_file)
+        raise HTTPException(status_code=404, detail="favicon not found")
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        if full_path.startswith(("tts", "agent", "voices", "docs", "openapi.json", "redoc", "assets")):
+            raise HTTPException(status_code=404, detail="Not found")
+
+        requested_file = FRONTEND_DIST_DIR / full_path
+        if full_path and requested_file.exists() and requested_file.is_file():
+            return FileResponse(requested_file)
+
+        index_file = FRONTEND_DIST_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+
+        raise HTTPException(status_code=404, detail="Frontend build not found")
 
