@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+kokoro
+soundfile
+ddgs
+groq
+python-dotenv
+numpy
+torch
